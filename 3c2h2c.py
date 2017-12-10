@@ -33,6 +33,7 @@ all_queue_time = {Way.long_way: [],
     Way.middle_way: [], 
     Way.short_way: []}
 all_clients = []
+all_clients_time = []
 
 
 class Student:
@@ -62,13 +63,14 @@ class Student:
             services_queue_length[self.way] +=\
                 [1 if not len(services_queue_length[self.way]) else services_queue_length[self.way][-1]+1]
             time = env.now
+            services_queue_time[self.way] += [0]
             print('{0}: wait for {1} service-queue student {2}'
                 .format(env.now, self.way, self.counter))
             yield req
             yield env.timeout(self.service_time)
             services_queue_length[self.way] +=\
                 [services_queue_length[self.way][-1]-1]
-            services_queue_time[self.way] += [env.now - time]
+            services_queue_time[self.way] += [time]
             print('{0}: service free student {1} after {2}'
                 .format(env.now, self.counter, self.service_time))
 
@@ -92,12 +94,15 @@ class Student:
 
     # полная обработка одного клиента
     def processes(self):
-        global all_clients
+        global all_clients, all_clients_time
         all_clients += [1 if not len(all_clients) else all_clients[-1]+1]
         time = env.now
+        all_queue_time[self.way] += [env.now - time]  
+        all_clients_time +=  [env.now]              
         yield env.process(self.wait_service())
         yield env.process(self.wait_cashier())
         all_queue_time[self.way] += [env.now - time]
+        all_clients_time +=  [env.now]
         all_clients += [all_clients[-1]-1]
 
 queue = []
@@ -160,3 +165,21 @@ for i, j in all_queue_time.items():
 print('Среднее и максимальное число клиентов во всей системе')
 print('Avg ', average(all_clients))
 print('Max ', max(all_clients))
+
+# Построение графиков
+from pylab import *
+
+font = {'family' : 'Normal',
+        'weight' : 'normal',
+        'size'   : 22}
+
+matplotlib.rc('font', **font)
+
+figure('Cients number')
+x = all_clients_time
+y = all_clients
+plot(x,y)
+title('Clients number')
+xlabel(u'Simulation time, sec')
+ylabel(u'Number of clients')
+show()
